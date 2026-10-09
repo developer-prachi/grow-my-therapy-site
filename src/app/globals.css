@@ -1,26 +1,726 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   THEME: "Evergreen & Terracotta"
+   One place to re-theme the whole site. Every component uses these tokens
+   (bg-primary, text-accent, border-ink/10 and so on), so nothing is hard-coded.
+   ========================================================================== */
+@theme {
+  /* Brand palette */
+  --color-primary: #2f4a3c; /* deep evergreen: headings, buttons, footer bar */
+  --color-secondary: #efe6da; /* warm oat: "About" and "Our Office" bands */
+  --color-accent: #b8674a; /* terracotta (echoes the office brick): script words */
+  --color-accent-strong: #9a4e34; /* darker terracotta: small text and links (AA contrast) */
+
+  /* Neutrals */
+  --color-canvas: #faf6f0; /* ivory page background */
+  --color-surface: #fffdf9; /* warm white sections */
+  --color-ink: #26302a; /* body text (deep green-charcoal) */
+  --color-overlay: #1b2b22; /* tint over the full-bleed photo */
+
+  /* Typography (the real families are injected by next/font in layout.tsx) */
+  --font-sans: var(--ff-body), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--ff-display), ui-serif, Georgia, serif;
+  --font-script: var(--ff-script), cursive;
+}
+
+/* ==========================================================================
+   FLUID LAYOUT ENGINE
+   The original site (Squarespace "Fluid Engine") places every block in cells of
+   a CSS grid. These rules reproduce that grid exactly so spacing matches at
+   every screen width:
+     ≥ 768px : 24 columns, rows = 2.15% of the container width (max 1800px)
+     < 768px : 8 columns, rows = 24px
+   Section padding uses vmax and min-height uses vh, exactly like the original.
+   ========================================================================== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* column gutter on both sides of the grid */
+  --fe-gutter: 6vw;
+  --fe-cols: 8;
+  --fe-row-h: 24px;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* "effective viewport width" used by the fluid type scale (capped) */
+  --vw-eff: min(100vw, 415.7px);
 
-@media (prefers-color-scheme: dark) {
+  /* type-scale slopes (px per 1vw): mobile values */
+  --k-h1: 6.754;
+  --k-h2: 4.936;
+  --k-h3: 3.636;
+  --k-h4: 1.819;
+  --k-p: 0.26;
+
+  /* header height (the first section is pushed down by this) */
+  --header-h: calc(70px + 12vw);
+
+  /* serif substitute tuning (measured). With the ORIGINAL Beaufort Pro these become 1 / -0.01em. */
+  --serif-scale: 0.97;
+  --serif-ls: -0.015em;
+  --serif-stack: var(--font-serif);
+
+  /* button size: shrinks slightly as the screen gets wider, like the original */
+  --btn-fs: calc(15px - 0.3908 * var(--vw-eff) / 100);
+}
+@media (min-width: 768px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --fe-gutter: 5vw;
+    --fe-cols: 24;
+    --fe-row-h: calc(min(1800px, 100vw - 10vw) * 0.0215);
+    --vw-eff: min(100vw, 1800px);
+    --k-h1: 3.12;
+    --k-h2: 2.28;
+    --k-h3: 1.68;
+    --k-h4: 0.84;
+    --k-p: 0.12;
+    --header-h: calc(75px + 12vw);
+    --btn-fs: calc(12.75px - 0.00181 * max(0px, 100vw - 1250px));
+  }
+}
+@media (min-width: 800px) {
+  :root {
+    --header-h: calc(75px + 2.8vw);
   }
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.8;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection {
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+/* ---- Section shell: min-height in vh, content centred, padding in vmax ---- */
+.fe-section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--min-h, 0px);
+  overflow-x: clip;
+}
+.fe-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-block: var(--pad, 0px);
+}
+
+/* ---- The grid ---- */
+.fe {
+  --gap: 11px;
+  display: grid;
+  width: 100%;
+  column-gap: var(--gap);
+  row-gap: 11px;
+  grid-template-columns:
+    minmax(calc(var(--fe-gutter) - var(--gap)), 1fr)
+    repeat(
+      var(--fe-cols),
+      minmax(0, calc((1800px - var(--gap) * (var(--fe-cols) - 1)) / var(--fe-cols)))
+    )
+    minmax(calc(var(--fe-gutter) - var(--gap)), 1fr);
+  grid-template-rows: repeat(var(--rows-m), minmax(var(--fe-row-h), auto));
+}
+@media (min-width: 768px) {
+  .fe {
+    grid-template-rows: repeat(var(--rows-d), minmax(var(--fe-row-h), auto));
+  }
+}
+
+/* ---- A block = one cell area; content is aligned vertically inside it ---- */
+.fe-block {
+  grid-area: var(--m);
+  display: flex;
+  flex-direction: column;
+  justify-content: var(--vm, center);
+  min-width: 0;
+  position: relative;
+}
+@media (min-width: 768px) {
+  .fe-block {
+    grid-area: var(--d);
+    justify-content: var(--vd, center);
+  }
+}
+.fe-block > .fe-fill {
+  position: absolute;
+  inset: 0;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY: measured from the original at 375 to 2560px.
+   size = 15px + slope × (capped vw). Line-height ratios are per level.
+   ========================================================================== */
+.t-h1,
+.t-h2,
+.t-h3,
+.t-h4 {
+  font-family: var(--serif-stack);
+  font-weight: 300;
+  letter-spacing: var(--serif-ls);
+  color: var(--color-primary);
+}
+.t-h1 {
+  --fs: calc(15px + var(--k-h1) * var(--vw-eff) / 100);
+  font-size: calc(var(--fs) * var(--serif-scale));
+  line-height: calc(var(--fs) * 1.2544);
+}
+.t-h2 {
+  --fs: calc(15px + var(--k-h2) * var(--vw-eff) / 100);
+  font-size: calc(var(--fs) * var(--serif-scale));
+  line-height: calc(var(--fs) * 1.2937);
+}
+.t-h3 {
+  --fs: calc(15px + var(--k-h3) * var(--vw-eff) / 100);
+  font-size: calc(var(--fs) * var(--serif-scale));
+  line-height: calc(var(--fs) * 1.3218);
+}
+.t-h4 {
+  --fs: calc(15px + var(--k-h4) * var(--vw-eff) / 100);
+  font-size: calc(var(--fs) * var(--serif-scale));
+  line-height: calc(var(--fs) * 1.3606);
+}
+
+/* Exact original serif, when the user supplies an Adobe Fonts kit (NEXT_PUBLIC_TYPEKIT_ID) */
+.has-beaufort {
+  --serif-scale: 1;
+  --serif-ls: -0.01em;
+  --serif-stack: "beaufort-pro", var(--font-serif);
+}
+.t-body {
+  font-size: calc(15px + var(--k-p) * var(--vw-eff) / 100);
+  line-height: 1.8;
+}
+.t-small {
+  /* footer lists: 0.9 × body */
+  font-size: calc(0.9 * (15px + var(--k-p) * var(--vw-eff) / 100));
+  line-height: 1.8;
+}
+.t-eyebrow {
+  font-size: 15px;
+  line-height: 1.8;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Rich-text rhythm inside a block (same margins as the original) */
+.sq-rich > :first-child {
+  margin-top: 0;
+}
+.sq-rich > :last-child {
+  margin-bottom: 0;
+}
+.sq-rich p {
+  margin: 15px 0;
+}
+.sq-rich h1,
+.sq-rich h2,
+.sq-rich h3,
+.sq-rich h4 {
+  margin: 30px 0;
+}
+
+/* Hand-lettered accent word inside a heading */
+.script {
+  font-family: var(--font-script);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--color-accent);
+  font-size: 1.92em; /* Mrs Saint Delafield at 1.92 times matches the original script's width and height */
+  line-height: 0;
+}
+
+/* ---- Buttons ---- */
+.btn-text,
+.btn-pill {
+  font-family: var(--font-sans);
+  font-size: var(--btn-fs);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  line-height: normal;
+  text-transform: uppercase;
+  color: var(--color-ink);
+}
+/* underlined text link, e.g. "BOOK AN APPOINTMENT" */
+.btn-text {
+  position: relative;
+  display: block;
+  width: fit-content;
+  padding: 9px 0;
+  transition: color 0.25s ease;
+}
+.btn-text::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 82%, transparent);
+}
+.btn-text:hover {
+  color: var(--color-accent-strong);
+}
+/* outlined oval button, e.g. "CONTACT", "BOOK NOW" (border-radius:100% like the original) */
+.btn-pill {
+  display: inline-block;
+  padding: 15px 19.5px;
+  border: 0.667px solid currentColor;
+  border-radius: 100%;
+  color: var(--color-primary);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+.btn-pill:hover {
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+
+/* FAQ accordion, using the original's geometry: 25px above/below the question, a 16px
+   "+" in a 32px left gutter, a 1px divider under every item, 30px under an answer. */
+.faq-item::after {
+  /* a 1px-tall box (not a border) so it stays exactly 1px at fractional pixel ratios */
+  content: "";
+  display: block;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-primary) 16%, var(--color-canvas));
+}
+.faq-item > summary {
+  position: relative;
+  display: block;
+  cursor: pointer;
+  list-style: none;
+  padding: 25px 0 25px 32px;
+}
+.faq-item > summary::-webkit-details-marker {
+  display: none;
+}
+.faq-q {
+  margin: 0;
+  /* the original sets "normal" here: 1.2544 × the unscaled size */
+  line-height: calc(var(--fs) * 1.2544);
+}
+.faq-plus {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+}
+.faq-plus::before,
+.faq-plus::after {
+  content: "";
+  position: absolute;
+  background: var(--color-ink);
+  transition: transform 0.25s ease;
+}
+.faq-plus::before {
+  left: 0;
+  top: 7.5px;
+  width: 16px;
+  height: 1px;
+}
+.faq-plus::after {
+  left: 7.5px;
+  top: 0;
+  width: 1px;
+  height: 16px;
+}
+.faq-item[open] .faq-plus::after {
+  transform: rotate(90deg);
+}
+.faq-a {
+  padding-bottom: 30px;
+}
+
+/* Hairline divider (the original's "line" blocks) */
+.sq-hr,
+.sq-hr-line {
+  height: 1px;
+  width: 100%;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+/* ==========================================================================
+   HEADER: overlays the hero (absolute), padding in vw, logo a fixed size.
+   Desktop nav ≥ 800px; burger menu below (same switch as the original).
+   ========================================================================== */
+.site-header {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6vw;
+}
+.logo-box {
+  /* 240×70 on phones, 257×75 from 768px: a fixed-size logo like the original's */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: 14.95px;
+  width: 239.7px;
+  height: 70px;
+}
+@media (min-width: 768px) {
+  .logo-box {
+    font-size: 16px;
+    width: 256.8px;
+    height: 75px;
+  }
+}
+@media (min-width: 800px) {
+  .site-header {
+    padding: 1.4vw 5vw;
+  }
+}
+.nav-list {
+  display: flex;
+  align-items: center;
+  gap: 2.5vw;
+}
+.nav-link {
+  display: inline-block;
+  padding-block: 0.1em;
+  font-size: var(--nav-fs, 13.5px);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  line-height: 1.8;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  transition: color 0.25s ease;
+}
+.nav-link:hover {
+  color: var(--color-accent-strong);
+}
+@media (min-width: 800px) {
+  :root {
+    --nav-fs: calc(13.5px - 0.00119 * max(0px, 100vw - 1256px));
+  }
+}
+/* dropdown panel (Specialties / Methods) */
+.nav-panel {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: calc(var(--nav-fs, 13.5px) * -1); /* so the text lines up with the label's right edge */
+  z-index: 50;
+  min-width: 200px;
+  text-align: right;
+  background: var(--color-canvas);
+}
+.nav-item:hover > .nav-panel,
+.nav-item:focus-within > .nav-panel {
+  display: block;
+}
+.nav-panel a {
+  display: block;
+  padding: 0.75em 1em;
+  white-space: nowrap;
+  font-size: var(--nav-fs, 13.5px);
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+}
+.nav-panel a:hover {
+  color: var(--color-accent-strong);
+}
+
+/* ==========================================================================
+   MOBILE MENU: metrics measured from the original's full-screen menu:
+   link size 8.5vw (under 576px), 6.6vw (576 to 767px), 6vw (768px and up), 5vw margins,
+   uppercase 0.06em-ish tracking, list centred, oval button pinned to the
+   bottom (padding 4vw 6vw 6vw, min-width 210px).
+   ========================================================================== */
+:root {
+  --mm-fs: 8.5vw;
+}
+@media (min-width: 576px) {
+  :root {
+    --mm-fs: 6.6vw;
+  }
+}
+@media (min-width: 768px) {
+  :root {
+    --mm-fs: 6vw;
+  }
+}
+
+/* three 1px lines (35px wide, 9.5px apart) that turn into an X */
+.burger {
+  position: relative;
+  z-index: 50;
+  flex-shrink: 0;
+  width: 47px;
+  height: 37px;
+}
+.burger-box {
+  position: absolute;
+  left: 6px;
+  top: 1px;
+  width: 35px;
+  height: 35px;
+}
+.burger-bar {
+  position: absolute;
+  left: 0;
+  top: 17px;
+  width: 35px;
+  height: 1px;
+  background: var(--color-ink);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.burger-bar[data-bar="top"] {
+  transform: translateY(-9.5px);
+}
+.burger-bar[data-bar="bottom"] {
+  transform: translateY(9.5px);
+}
+.burger[data-open="true"] .burger-bar[data-bar="top"] {
+  width: 28px;
+  transform: translateX(3.5px) rotate(45deg);
+}
+.burger[data-open="true"] .burger-bar[data-bar="bottom"] {
+  width: 28px;
+  transform: translateX(3.5px) rotate(-45deg);
+}
+.burger[data-open="true"] .burger-bar[data-bar="mid"] {
+  transform: scale(0);
+}
+
+.mm {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--header-h);
+  background: var(--color-canvas);
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mm[data-open="true"] {
+  visibility: visible;
+  opacity: 1;
+}
+@media (min-width: 800px) {
+  .mm {
+    display: none;
+  }
+}
+.mm-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.mm-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.45s;
+}
+.mm-panel[data-state="left"] {
+  transform: translateX(-100%);
+  visibility: hidden;
+}
+.mm-panel[data-state="right"] {
+  transform: translateX(100%);
+  visibility: hidden;
+}
+.mm-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.mm-list {
+  margin-block: auto; /* centred when it fits, scrolls from the top when it doesn't */
+}
+.mm-item {
+  padding-inline: 5vw;
+}
+.mm-link {
+  display: inline-flex;
+  align-items: center;
+  margin: 5vw;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: var(--mm-fs);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 1.91px;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  transition: color 0.25s ease;
+}
+.mm-link:hover {
+  color: var(--color-accent-strong);
+}
+.mm-chev {
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+}
+.mm-chev-next {
+  margin-left: 0.15em;
+  transform: rotate(-90deg);
+}
+.mm-chev-prev {
+  margin-right: 0.15em;
+  transform: rotate(90deg);
+}
+/* "‹ Back" row at the top of a folder */
+.mm-back {
+  padding-bottom: 10px;
+}
+.mm-back .mm-link {
+  padding-inline: 10px;
+  letter-spacing: calc(var(--btn-fs) * 0.12);
+}
+.mm-cta {
+  flex: none;
+  padding: 4vw 6vw 6vw;
+}
+.mm-cta .btn-pill {
+  min-width: 210px;
+  text-align: center;
+  border-width: 1px;
+}
+
+/* ==========================================================================
+   CONTACT POP-UP ("Request a session"): a native <dialog>, themed with the site tokens.
+   ========================================================================== */
+.cd {
+  margin: auto;
+  padding: 0;
+  border: 0;
+  width: min(92vw, 560px);
+  max-height: min(94vh, 820px);
+  overflow-y: auto;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 30px 80px -24px rgb(27 43 34 / 0.5);
+}
+html:has(dialog.cd[open]) {
+  overflow: hidden; /* no page scrolling behind the pop-up */
+}
+.cd::backdrop {
+  background: color-mix(in srgb, var(--color-overlay) 62%, transparent);
+}
+.cd-card {
+  position: relative;
+  padding: clamp(28px, 5vw, 44px);
+}
+.cd-title {
+  margin: 10px 0 14px;
+}
+.cd-field {
+  display: block;
+  margin-top: 18px;
+}
+.cd-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.8em;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.cd-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+  border-radius: 0;
+  background: var(--color-canvas);
+  color: inherit;
+  font: inherit;
+  font-size: max(16px, 1em); /* 16px+ stops iOS from zooming into the field */
+  line-height: 1.5;
+}
+textarea.cd-input {
+  resize: vertical;
+}
+.cd-input:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+.cd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  margin-top: 30px;
+}
+.cd-actions .btn-pill {
+  cursor: pointer;
+}
+.cd-note {
+  flex: 1 1 200px;
+  font-size: 0.8em;
+  font-style: italic;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+/* thin "X" in the top-right corner (same 1px line as the menu button) */
+.cd-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+}
+.cd-close::before,
+.cd-close::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 19.5px;
+  width: 24px;
+  height: 1px;
+  background: var(--color-ink);
+}
+.cd-close::before {
+  transform: rotate(45deg);
+}
+.cd-close::after {
+  transform: rotate(-45deg);
+}
+
+/* ---- Accessibility ---- */
+:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
